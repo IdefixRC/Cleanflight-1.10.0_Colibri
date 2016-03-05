@@ -20,9 +20,7 @@
 #include <string.h>
 
 #include "platform.h"
-
 #include "build_config.h"
-
 #include "system.h"
 
 #include "gpio.h"
@@ -37,11 +35,9 @@
 
 void adcInit(drv_adc_config_t *init)
 {
-	
 #if defined(COLIBRI)
     UNUSED(init);
-#endif	
-	
+#endif
     ADC_InitTypeDef ADC_InitStructure;
     DMA_InitTypeDef DMA_InitStructure;
     GPIO_InitTypeDef GPIO_InitStructure;
