@@ -37,9 +37,9 @@
 // SCL  PB8
 // SDA  PB9
 
-static void i2c_er_handler(I2CDevice bus);
-static void i2c_ev_handler(I2CDevice bus);
-static void i2cUnstick(I2CDevice bus);
+static void i2c_er_handler(void);
+static void i2c_ev_handler(void);
+static void i2cUnstick(void);
 
 typedef struct i2cDevice_t {
     I2C_TypeDef *dev;
@@ -58,34 +58,39 @@ static const i2cDevice_t i2cHardwareMap[] = {
     { I2C3, GPIOA, Pin_8, GPIOC, Pin_9, I2C3_EV_IRQn, I2C3_ER_IRQn, RCC_APB1Periph_I2C3 },
 };
 
+// Copy of peripheral address for IRQ routines
+//static I2C_TypeDef *I2Cx = NULL;
+// Copy of device index for reinit, etc purposes
+static I2CDevice I2Cx_index;
+
 void I2C1_ER_IRQHandler(void)
 {
-    i2c_er_handler(I2CDEV_1);
+    i2c_er_handler();
 }
 
 void I2C1_EV_IRQHandler(void)
 {
-    i2c_ev_handler(I2CDEV_1);
+    i2c_ev_handler();
 }
 
 void I2C2_ER_IRQHandler(void)
 {
-    i2c_er_handler(I2CDEV_2);
+    i2c_er_handler();
 }
 
 void I2C2_EV_IRQHandler(void)
 {
-    i2c_ev_handler(I2CDEV_2);
+    i2c_ev_handler();
 }
 
 void I2C3_ER_IRQHandler(void)
 {
-    i2c_er_handler(I2CDEV_3);
+    i2c_er_handler();
 }
 
 void I2C3_EV_IRQHandler(void)
 {
-    i2c_ev_handler(I2CDEV_3);
+    i2c_ev_handler();
 }
 
 #define I2C_DEFAULT_TIMEOUT 30000
@@ -102,18 +107,17 @@ static volatile uint8_t reading;
 static volatile uint8_t* write_p;
 static volatile uint8_t* read_p;
 
-static bool i2cHandleHardwareFailure(I2CDevice bus)
+static bool i2cHandleHardwareFailure(void)
 {
     i2cErrorCount++;
     // reinit peripheral + clock out garbage
-    i2cInit(bus);
+    i2cInit(I2Cx_index);
     return false;
 }
 
-bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data, I2CDevice bus)
+bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data)
 {
-	I2C_TypeDef *I2Cx = i2cHardwareMap[bus].dev;
-    uint32_t timeout = I2C_DEFAULT_TIMEOUT;
+	uint32_t timeout = I2C_DEFAULT_TIMEOUT;
 
     addr = addr_ << 1;
     reg = reg_;
@@ -129,7 +133,7 @@ bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data, I2
         if (!(I2Cx->CR1 & I2C_CR1_START)) {                                    // ensure sending a start
             while (I2Cx->CR1 & I2C_CR1_STOP && --timeout > 0) { ; }           // wait for any stop to finish sending
             if (timeout == 0)
-                return i2cHandleHardwareFailure(bus);
+                return i2cHandleHardwareFailure();
             I2C_GenerateSTART(I2Cx, ENABLE);                            // send the start for the new job
         }
         I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, ENABLE);            // allow the interrupts to fire off again
@@ -138,19 +142,19 @@ bool i2cWriteBuffer(uint8_t addr_, uint8_t reg_, uint8_t len_, uint8_t *data, I2
     timeout = I2C_DEFAULT_TIMEOUT;
     while (busy && --timeout > 0) { ; }
     if (timeout == 0)
-        return i2cHandleHardwareFailure(bus);
+        return i2cHandleHardwareFailure();
 
     return !error;
 }
 
-bool i2cWrite(uint8_t addr_, uint8_t reg_, uint8_t data, I2CDevice bus)
+bool i2cWrite(uint8_t addr_, uint8_t reg_, uint8_t data)
 {
-    return i2cWriteBuffer(addr_, reg_, 1, &data, bus);
+    return i2cWriteBuffer(addr_, reg_, 1, &data);
 }
 
-bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf, I2CDevice bus)
+bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf)
 {
-	I2C_TypeDef *I2Cx = i2cHardwareMap[bus].dev;
+	
     uint32_t timeout = I2C_DEFAULT_TIMEOUT;
 
     addr = addr_ << 1;
@@ -167,7 +171,7 @@ bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf, I2CDevice b
         if (!(I2Cx->CR1 & I2C_CR1_START)) {                                    // ensure sending a start
             while (I2Cx->CR1 & I2C_CR1_STOP && --timeout > 0) { ; }           // wait for any stop to finish sending
             if (timeout == 0)
-                return i2cHandleHardwareFailure(bus);
+                return i2cHandleHardwareFailure();
             I2C_GenerateSTART(I2Cx, ENABLE);                            // send the start for the new job
         }
         I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, ENABLE);            // allow the interrupts to fire off again
@@ -176,14 +180,14 @@ bool i2cRead(uint8_t addr_, uint8_t reg_, uint8_t len, uint8_t* buf, I2CDevice b
     timeout = I2C_DEFAULT_TIMEOUT;
     while (busy && --timeout > 0) { ; }
     if (timeout == 0)
-        return i2cHandleHardwareFailure(bus);
+        return i2cHandleHardwareFailure();
 
     return !error;
 }
 
-static void i2c_er_handler(I2CDevice bus)
+static void i2c_er_handler(void)
 {
-	I2C_TypeDef *I2Cx = i2cHardwareMap[bus].dev;
+	
     // Read the I2C1 status register
     volatile uint32_t SR1Register = I2Cx->SR1;
 
@@ -199,7 +203,7 @@ static void i2c_er_handler(I2CDevice bus)
                 while (I2Cx->CR1 & I2C_CR1_START) { ; }                        // wait for any start to finish sending
                 I2C_GenerateSTOP(I2Cx, ENABLE);                         // send stop to finalise bus transaction
                 while (I2Cx->CR1 & I2C_CR1_STOP) { ; }                        // wait for stop to finish sending
-                i2cInit(bus);                                    // reset and configure the hardware
+                i2cInit(I2Cx_index);                                    // reset and configure the hardware
             } else {
                 I2C_GenerateSTOP(I2Cx, ENABLE);                         // stop to free up the bus
                 I2C_ITConfig(I2Cx, I2C_IT_EVT | I2C_IT_ERR, DISABLE);   // Disable EVT and ERR interrupts while bus inactive
@@ -210,9 +214,9 @@ static void i2c_er_handler(I2CDevice bus)
     busy = 0;
 }
 
-void i2c_ev_handler(I2CDevice bus)
+void i2c_ev_handler(void)
 {
-	I2C_TypeDef *I2Cx = i2cHardwareMap[bus].dev;
+	
     static uint8_t subaddress_sent, final_stop;                         // flag to indicate if subaddess sent, flag to indicate final bus condition
     static int8_t index;                                                // index is signed -1 == send the subaddress
     uint8_t SReg_1 = I2Cx->SR1;                                         // read the status register here
@@ -311,25 +315,25 @@ void i2c_ev_handler(I2CDevice bus)
     }
 }
 
-void i2cInit(I2CDevice bus)
+void i2cInit(I2CDevice index)
 {
     NVIC_InitTypeDef nvic;
     I2C_InitTypeDef i2c;
 
-    if (bus > I2CDEV_MAX)
-        bus = I2CDEV_MAX;
+    if (index > I2CDEV_MAX)
+        index = I2CDEV_MAX;
 
     // Turn on peripheral clock, save device and index
-	I2C_TypeDef *I2Cx = i2cHardwareMap[bus].dev;
+	I2C_TypeDef *I2Cx = i2cHardwareMap[index].dev;
 
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
-    RCC_APB1PeriphClockCmd(i2cHardwareMap[bus].peripheral, ENABLE);
+    RCC_APB1PeriphClockCmd(i2cHardwareMap[index].peripheral, ENABLE);
 
     // clock out stuff to make sure slaves arent stuck
     // This will also configure GPIO as AF_OD at the end
-    i2cUnstick(bus);
+    i2cUnstick();
 
     if(I2Cx == I2C1)
     {
@@ -362,14 +366,14 @@ void i2cInit(I2CDevice bus)
     I2C_Init(I2Cx, &i2c);
 
     // I2C ER Interrupt
-    nvic.NVIC_IRQChannel = i2cHardwareMap[bus].er_irq;
+    nvic.NVIC_IRQChannel = i2cHardwareMap[index].er_irq;
     nvic.NVIC_IRQChannelPreemptionPriority = NVIC_PRIORITY_BASE(NVIC_PRIO_I2C_ER);
     nvic.NVIC_IRQChannelSubPriority = NVIC_PRIORITY_SUB(NVIC_PRIO_I2C_ER);
     nvic.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&nvic);
 
     // I2C EV Interrupt
-    nvic.NVIC_IRQChannel = i2cHardwareMap[bus].ev_irq;
+    nvic.NVIC_IRQChannel = i2cHardwareMap[index].ev_irq;
     nvic.NVIC_IRQChannelPreemptionPriority = NVIC_PRIORITY_BASE(NVIC_PRIO_I2C_EV);
     nvic.NVIC_IRQChannelSubPriority = NVIC_PRIORITY_SUB(NVIC_PRIO_I2C_EV);
     NVIC_Init(&nvic);
@@ -380,7 +384,7 @@ uint16_t i2cGetErrorCounter(void)
     return i2cErrorCount;
 }
 
-static void i2cUnstick(I2CDevice bus)
+static void i2cUnstick(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
     GPIO_TypeDef *gpioscl;
@@ -390,10 +394,10 @@ static void i2cUnstick(I2CDevice bus)
     int i;
 
     // prepare pins
-    gpioscl = i2cHardwareMap[bus].gpioscl;
-    scl = i2cHardwareMap[bus].scl;
-    gpiosda = i2cHardwareMap[bus].gpiosda;
-    sda = i2cHardwareMap[bus].sda;
+    gpioscl = i2cHardwareMap[I2Cx_index].gpioscl;
+    scl = i2cHardwareMap[I2Cx_index].scl;
+    gpiosda = i2cHardwareMap[I2Cx_index].gpiosda;
+    sda = i2cHardwareMap[I2Cx_index].sda;
 
     digitalHi(gpioscl, scl);
     digitalHi(gpiosda, sda);

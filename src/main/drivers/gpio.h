@@ -73,29 +73,6 @@ typedef enum
 
 #ifdef STM32F40_41xxx
 
-/*
-typedef enum
-{
-  GPIO_Mode_IN   = 0x00, // GPIO Input Mode
-  GPIO_Mode_OUT  = 0x01, // GPIO Output Mode
-  GPIO_Mode_AF   = 0x02, // GPIO Alternate function Mode
-  GPIO_Mode_AN   = 0x03  // GPIO Analog In/Out Mode
-}GPIOMode_TypeDef;
-
-typedef enum
-{
-  GPIO_OType_PP = 0x00,
-  GPIO_OType_OD = 0x01
-}GPIOOType_TypeDef;
-
-typedef enum
-{
-  GPIO_PuPd_NOPULL = 0x00,
-  GPIO_PuPd_UP     = 0x01,
-  GPIO_PuPd_DOWN   = 0x02
-}GPIOPuPd_TypeDef;
-*/
-
 typedef enum
 {
     Mode_AIN =          (GPIO_PuPd_NOPULL << 2) | GPIO_Mode_AN,
@@ -148,11 +125,11 @@ typedef struct
 
 #ifndef UNIT_TEST
 #ifdef STM32F40_41xxx
-static inline void digitalHi(GPIO_TypeDef *p, uint16_t i) { p->BSRRL = i; }
-static inline void digitalLo(GPIO_TypeDef *p, uint16_t i)     { p->BSRRH = i; }
+	static inline void digitalHi(GPIO_TypeDef *p, uint16_t i) { p->BSRRL = i; }
+	static inline void digitalLo(GPIO_TypeDef *p, uint16_t i)     { p->BSRRH = i; }
 #else
-static inline void digitalHi(GPIO_TypeDef *p, uint16_t i) { p->BSRR = i; }
-static inline void digitalLo(GPIO_TypeDef *p, uint16_t i)     { p->BRR = i; }
+	static inline void digitalHi(GPIO_TypeDef *p, uint16_t i) { p->BSRR = i; }
+	static inline void digitalLo(GPIO_TypeDef *p, uint16_t i)     { p->BRR = i; }
 #endif
 static inline void digitalToggle(GPIO_TypeDef *p, uint16_t i) { p->ODR ^= i; }
 static inline uint16_t digitalIn(GPIO_TypeDef *p, uint16_t i) {return p->IDR & i; }

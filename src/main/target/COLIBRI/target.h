@@ -71,9 +71,9 @@
 #define USE_BARO_MS5611
 #define MS5611_BUS I2C_DEVICE_INT
 
-#define PITOT
+//#define PITOT
 //#define USE_PITOT_MS4525
-#define MS4525_BUS I2C_DEVICE_EXT
+//#define MS4525_BUS I2C_DEVICE_EXT
 
 
 #define INVERTER
