@@ -356,6 +356,8 @@ VCP_SRC	 = \
 		   vcp/usb_istr.c \
 		   vcp/usb_prop.c \
 		   vcp/usb_pwr.c \
+		   drivers/serial_usb_vcp.c
+
 VCPF4_SRC	 = \
 		   vcpf4/stm32f4xx_it.c \
 		   vcpf4/usb_bsp.c \
@@ -539,7 +541,6 @@ CC3D_SRC	 = \
 COLIBRI_SRC = startup_stm32f40xx.s \
 		   drivers/accgyro_spi_mpu6000.c \
 		   drivers/barometer_ms5611.c \
-		   drivers/pitotmeter_ms4525.c \
 		   drivers/compass_hmc5883l.c \
 		   drivers/adc.c \
 		   drivers/adc_stm32f4xx.c \
@@ -565,6 +566,7 @@ COLIBRI_SRC = startup_stm32f40xx.s \
 		   $(HIGHEND_SRC) \
 		   $(COMMON_SRC) \
 		   $(VCPF4_SRC)
+
 
 STM32F30x_COMMON_SRC	 = \
 		   startup_stm32f30x_md_gcc.S \
