@@ -17,6 +17,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include <platform.h>
 
@@ -59,7 +60,7 @@ static const i2cDevice_t i2cHardwareMap[] = {
 };
 
 // Copy of peripheral address for IRQ routines
-//static I2C_TypeDef *I2Cx = NULL;
+static I2C_TypeDef *I2Cx = NULL;
 // Copy of device index for reinit, etc purposes
 static I2CDevice I2Cx_index;
 
